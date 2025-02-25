@@ -15,7 +15,8 @@ import {
   MeshPhongMaterial,
   PerspectiveCamera,
   Scene,
-  WebGLRenderer
+  WebGLRenderer,
+  AnimationMixer
 } from 'three';
 
 // XR Emulator
@@ -96,9 +97,26 @@ await setupXR('immersive-ar');
 // INSERT CODE HERE
 let camera, scene, renderer;
 let controller;
-
+let model;
+let mixer; // Variable to store the animation mixer
 
 const clock = new Clock();
+
+function loadModel() {
+  const loader = new GLTFLoader();
+  loader.load('WebXR/public/assets/homer.glb', (gltf) => {
+    model = gltf.scene;
+    model.visible = false;
+    scene.add(model);
+
+    // Initialize the animation mixer and play the first animation
+    mixer = new AnimationMixer(model);
+    const action = mixer.clipAction(gltf.animations[0]);
+    action.play();
+  }, undefined, (error) => {
+    console.error('An error happened while loading the model:', error);
+  });
+}
 
 // Main loop
 const animate = () => {
@@ -106,7 +124,7 @@ const animate = () => {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
 
-  // can be used in shaders: uniforms.u_time.value = elapsed;
+  if (mixer) mixer.update(delta); // Update the animation mixer
 
   renderer.render(scene, camera);
 };
@@ -154,19 +172,18 @@ const init = () => {
   const geometry = new CylinderGeometry(0, 0.05, 0.2, 32).rotateX(Math.PI / 2);
 
   const onSelect = (event) => {
-
-    const material = new MeshPhongMaterial({ color: 0xffffff * Math.random() });
-    const mesh = new Mesh(geometry, material);
-    mesh.position.set(0, 0, - 0.3).applyMatrix4(controller.matrixWorld);
-    mesh.quaternion.setFromRotationMatrix(controller.matrixWorld);
-    scene.add(mesh);
-
-  }
+    if (model) {
+      model.position.set(0, 0, -3).applyMatrix4(controller.matrixWorld);
+      model.quaternion.setFromRotationMatrix(controller.matrixWorld);
+      model.visible = true;
+    }
+  };
 
   controller = renderer.xr.getController(0);
   controller.addEventListener('select', onSelect);
   scene.add(controller);
 
+  loadModel();
 
   window.addEventListener('resize', onWindowResize, false);
 
