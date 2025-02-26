@@ -135,7 +135,6 @@ function loadPig() {
   loader.load('./WebXR/assets/pig.glb', (gltf) => {
     pig = gltf.scene;
     pig.visible = false;
-    scene.add(pig);
 
     pigMixer = new AnimationMixer(pig);
     walkAction = pigMixer.clipAction(gltf.animations[7]);
@@ -145,25 +144,26 @@ function loadPig() {
     console.error('An error happened while loading the pig model:', error);
   });
 }
-function placePigOnCeiling(y) {
-  if (reticle.visible && pig) {
-    const position = new Vector3();
-    const quaternion = new Quaternion();
-    const scale = new Vector3();
-    reticle.matrix.decompose(position, quaternion, scale);
-    position.y = y;
-    position.x = 1;
 
-    pig.position.copy(position);
-    pig.rotation.set(Math.PI, 0, 0);
+function placePigOnCeiling(position_donut) {
+  if (reticle.visible && pig) {
+    const offset = new Vector3(
+      (Math.random() - 0.5) * 2,
+      0,
+      (Math.random() - 0.5) * 2
+    );
+    const pigPosition = position_donut.clone().add(offset);
+
+    pig.position.copy(pigPosition);
     pig.scale.set(0.3, 0.3, 0.3);
+
     ensurePigIsUpsideDown();
     pig.visible = true;
-    console.log('Pig placed on ceiling:', pig);
-    walkAction.play();
+    scene.add(pig);
+
+
   }
 }
-
 
 const onSelect = () => {
   placeDonutOnSurface();
@@ -186,10 +186,9 @@ function placeDonutOnSurface() {
       scene.add(donut);
       donuts.push(donut);
       if (nb_donuts == 0) {
-        placePigOnCeiling(donut.position.y);
+        placePigOnCeiling(donut.position);
         nb_donuts++;
       }
-      console.log('Donut placed on ceiling:', donut);
     } else {
       console.log('Surface is not a ceiling, donut not placed.');
     }
@@ -222,7 +221,6 @@ function collectClosestDonut() {
         scene.remove(closestDonut);
         donuts = donuts.filter(donut => donut !== closestDonut);
         donuts_collected++;
-        console.log('Donut collected:', donuts_collected);
         walkAction.stop();
         eatingAction.play();
         setTimeout(() => {
@@ -238,13 +236,16 @@ function collectClosestDonut() {
       }
     }
   } else {
-    if (!idleAction.isRunning()) {
-      walkAction.stop();
-      eatingAction.stop();
-      idleAction.play();
+    if (pig) {
+      if (!idleAction.isRunning() && pig) {
+        walkAction.stop();
+        eatingAction.stop();
+        idleAction.play();
+      }
     }
   }
 }
+
 function ensurePigIsUpsideDown() {
   if (pig) {
     const ceilingNormal = new Vector3(0, -1, 0);
