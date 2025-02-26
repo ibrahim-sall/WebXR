@@ -14,9 +14,8 @@ import {
   PMREMGenerator,
   RingGeometry,
   MeshBasicMaterial,
-  DynamicDrawUsage,
-  MeshStandardMaterial,
-  InstancedMesh
+  Vector3,
+  Quaternion,
 } from 'three';
 
 // XR Emulator
@@ -103,8 +102,6 @@ let reticle;
 let hitTestSource = null;
 let hitTestSourceRequested = false;
 let model = null;
-let dummy = null;
-let mesh = null;
 
 const clock = new Clock();
 
@@ -118,14 +115,7 @@ function loadModel() {
   loader.load('./WebXR/assets/donut.glb', (gltf) => {
     model = gltf.scene;
     model.visible = false;
-
-    dummy = model.children[0];
     scene.add(model);
-
-    mesh = new InstancedMesh(dummy.geometry, new MeshStandardMaterial({
-      flatShading: true,
-    }), 128);
-    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     console.log('Model loaded:', model);
   }, undefined, (error) => {
     console.error('An error happened while loading the model:', error);
@@ -134,11 +124,17 @@ function loadModel() {
 
 function placeDonutOnSurface() {
   if (reticle.visible && model) {
-    const instanceId = mesh.count++;
-    reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-    mesh.setMatrixAt(instanceId, reticle.matrix);
-    mesh.instanceMatrix.needsUpdate = true;
-    scene.add(mesh);
+    const donut = model.clone();
+    const position = new Vector3();
+    const quaternion = new Quaternion();
+    const scale = new Vector3();
+    reticle.matrix.decompose(position, quaternion, scale);
+    donut.position.copy(position);
+    donut.quaternion.copy(quaternion);
+    donut.scale.copy(scale);
+    donut.visible = true;
+    scene.add(donut);
+    console.log('Donut placed on surface:', donut);
   }
 }
 
