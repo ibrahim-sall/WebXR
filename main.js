@@ -14,9 +14,13 @@ import {
   MeshNormalMaterial,
   MeshPhongMaterial,
   PerspectiveCamera,
+  PlaneGeometry,
   Scene,
   WebGLRenderer,
-  AnimationMixer
+  AnimationMixer,
+  Matrix4,
+  Raycaster,
+  PMREMGenerator
 } from 'three';
 
 // XR Emulator
@@ -25,6 +29,8 @@ import { XRDevice, metaQuest3 } from 'iwer';
 
 // XR
 import { XRButton } from 'three/addons/webxr/XRButton.js';
+
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // If you prefer to import the whole library, with the THREE prefix, use the following line instead:
 // import * as THREE from 'three'
@@ -53,6 +59,7 @@ import {
   GLTFLoader
 } from 'three/addons/loaders/GLTFLoader.js';
 
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // Example of hard link to official repo for data, if needed
 // const MODEL_PATH = 'https://raw.githubusercontent.com/mrdoob/three.js/r173/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb';
 
@@ -94,50 +101,93 @@ await setupXR('immersive-ar');
 
 
 
-// INSERT CODE HERE
 let camera, scene, renderer;
 let controller;
 let model;
-let mixer; // Variable to store the animation mixer
+let mixer;
+let hitTestSource = null;
+let localSpace = null;
 
 const clock = new Clock();
 
 function loadModel() {
   const loader = new GLTFLoader();
-  loader.load('WebXR/public/assets/homer.glb', (gltf) => {
+
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('./WebXR/jsm/libs/draco/gltf/');
+  loader.setDRACOLoader(dracoLoader);
+
+  loader.load('./WebXR/assets/donut.glb', (gltf) => {
     model = gltf.scene;
     model.visible = false;
     scene.add(model);
-
-    // Initialize the animation mixer and play the first animation
-    mixer = new AnimationMixer(model);
-    const action = mixer.clipAction(gltf.animations[0]);
-    action.play();
+    console.log('Model loaded:', model);
   }, undefined, (error) => {
     console.error('An error happened while loading the model:', error);
   });
 }
 
-// Main loop
-const animate = () => {
+function placeDonutOnSurface(hitPose) {
+  if (model) {
+    const donut = model.clone();
+    donut.position.set(hitPose.transform.position.x, hitPose.transform.position.y, hitPose.transform.position.z);
+    donut.quaternion.set(hitPose.transform.orientation.x, hitPose.transform.orientation.y, hitPose.transform.orientation.z, hitPose.transform.orientation.w);
+    donut.visible = true;
+    scene.add(donut);
+    console.log('Donut placed at:', hitPose.transform.position);
+  } else {
+    console.log('Model is not loaded yet.');
+  }
+}
 
+const onSelect = (event) => {
+  console.log('User clicked on screen');
+  const session = renderer.xr.getSession();
+  const frame = event.frame;
+  if (hitTestSource && localSpace && frame) {
+    const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+    if (hitTestResults.length > 0) {
+      const hit = hitTestResults[0];
+      const hitPose = hit.getPose(localSpace);
+      placeDonutOnSurface(hitPose);
+    } else {
+      console.log('No hit test results found.');
+    }
+  } else {
+    console.log('Hit test source or local space not initialized.');
+  }
+};
+
+// Main loop
+const animate = (timestamp, frame) => {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
 
-  if (mixer) mixer.update(delta); // Update the animation mixer
-
+  if (mixer) mixer.update(delta);
   renderer.render(scene, camera);
-};
 
+  if (frame) {
+    const session = renderer.xr.getSession();
+    if (!hitTestSource) {
+      session.requestReferenceSpace('local').then((referenceSpace) => {
+        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+          hitTestSource = source;
+          localSpace = referenceSpace;
+        });
+      });
+    }
+  }
+};
 
 const init = () => {
   scene = new Scene();
 
   const aspect = window.innerWidth / window.innerHeight;
-  camera = new PerspectiveCamera(75, aspect, 0.1, 10); // meters
-  camera.position.set(0, 1.6, 3);
+  camera = new PerspectiveCamera(75, aspect, 0.1, 10);
+  camera.position.set(0, 1.6, 0);
 
-  const light = new AmbientLight(0xffffff, 1.0); // soft white light
+  const light = new AmbientLight(0xffffff, 1.0);
   scene.add(light);
 
   const hemiLight = new HemisphereLight(0xffffff, 0xbbbbff, 3);
@@ -147,87 +197,39 @@ const init = () => {
   renderer = new WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setAnimationLoop(animate); // requestAnimationFrame() replacement, compatible with XR 
+  renderer.setAnimationLoop(animate);
   renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
 
-  /*
-  document.body.appendChild( XRButton.createButton( renderer, {
-    'optionalFeatures': [ 'depth-sensing' ],
-    'depthSensing': { 'usagePreference': [ 'gpu-optimized' ], 'dataFormatPreference': [] }
-  } ) );
-*/
+  const environment = new RoomEnvironment();
+  const pmremGenerator = new PMREMGenerator(renderer);
+  scene.environment = pmremGenerator.fromScene(environment).texture;
 
-  const xrButton = XRButton.createButton(renderer, {});
+  const xrButton = XRButton.createButton(renderer, {
+    optionalFeatures: ['hit-test']
+  });
   xrButton.style.backgroundColor = 'skyblue';
   document.body.appendChild(xrButton);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  //controls.listenToKeyEvents(window); // optional
   controls.target.set(0, 1.6, 0);
   controls.update();
-
-  // Handle input: see THREE.js webxr_ar_cones
-
-  const geometry = new CylinderGeometry(0, 0.05, 0.2, 32).rotateX(Math.PI / 2);
-
-  const onSelect = (event) => {
-    if (model) {
-      model.position.set(0, 0, -3).applyMatrix4(controller.matrixWorld);
-      model.quaternion.setFromRotationMatrix(controller.matrixWorld);
-      model.visible = true;
-    }
-  };
 
   controller = renderer.xr.getController(0);
   controller.addEventListener('select', onSelect);
   scene.add(controller);
+  console.log('Controller initialized:', controller);
 
   loadModel();
 
   window.addEventListener('resize', onWindowResize, false);
-
-}
+};
 
 init();
 
-//
-
-/*
-function loadData() {
-  new GLTFLoader()
-    .setPath('assets/models/')
-    .load('test.glb', gltfReader);
-}
-
-
-function gltfReader(gltf) {
-  let testModel = null;
-
-  testModel = gltf.scene;
-
-  if (testModel != null) {
-    console.log("Model loaded:  " + testModel);
-    scene.add(gltf.scene);
-  } else {
-    console.log("Load FAILED.  ");
-  }
-}
-
-loadData();
-*/
-
-
-// camera.position.z = 3;
-
-
-
-
 function onWindowResize() {
-
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 
   renderer.setSize(window.innerWidth, window.innerHeight);
-
 }
