@@ -5,22 +5,18 @@
 
 import {
   AmbientLight,
-  BoxGeometry,
   Clock,
-  Color,
-  CylinderGeometry,
   HemisphereLight,
   Mesh,
-  MeshNormalMaterial,
-  MeshPhongMaterial,
   PerspectiveCamera,
-  PlaneGeometry,
   Scene,
   WebGLRenderer,
-  AnimationMixer,
-  Matrix4,
-  Raycaster,
-  PMREMGenerator
+  PMREMGenerator,
+  RingGeometry,
+  MeshBasicMaterial,
+  DynamicDrawUsage,
+  MeshStandardMaterial,
+  InstancedMesh
 } from 'three';
 
 // XR Emulator
@@ -103,10 +99,12 @@ await setupXR('immersive-ar');
 
 let camera, scene, renderer;
 let controller;
-let model;
-let mixer;
+let reticle;
 let hitTestSource = null;
-let localSpace = null;
+let hitTestSourceRequested = false;
+let model = null;
+let dummy = null;
+let mesh = null;
 
 const clock = new Clock();
 
@@ -120,43 +118,32 @@ function loadModel() {
   loader.load('./WebXR/assets/donut.glb', (gltf) => {
     model = gltf.scene;
     model.visible = false;
+
+    dummy = model.children[0];
     scene.add(model);
+
+    mesh = new InstancedMesh(dummy.geometry, new MeshStandardMaterial({
+      flatShading: true,
+    }), 128);
+    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     console.log('Model loaded:', model);
   }, undefined, (error) => {
     console.error('An error happened while loading the model:', error);
   });
 }
 
-function placeDonutOnSurface(hitPose) {
-  if (model) {
-    const donut = model.clone();
-    donut.position.set(hitPose.transform.position.x, hitPose.transform.position.y, hitPose.transform.position.z);
-    donut.quaternion.set(hitPose.transform.orientation.x, hitPose.transform.orientation.y, hitPose.transform.orientation.z, hitPose.transform.orientation.w);
-    donut.visible = true;
-    scene.add(donut);
-    console.log('Donut placed at:', hitPose.transform.position);
-  } else {
-    console.log('Model is not loaded yet.');
+function placeDonutOnSurface() {
+  if (reticle.visible && model) {
+    const instanceId = mesh.count++;
+    reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+    mesh.setMatrixAt(instanceId, reticle.matrix);
+    mesh.instanceMatrix.needsUpdate = true;
+    scene.add(mesh);
   }
 }
 
-const onSelect = (event) => {
-  console.log('User clicked on screen');
-  const session = renderer.xr.getSession();
-  const frame = event.frame;
-  if (hitTestSource && localSpace && frame) {
-    const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-    if (hitTestResults.length > 0) {
-      const hit = hitTestResults[0];
-      const hitPose = hit.getPose(localSpace);
-      placeDonutOnSurface(hitPose);
-    } else {
-      console.log('No hit test results found.');
-    }
-  } else {
-    console.log('Hit test source or local space not initialized.');
-  }
+const onSelect = () => {
+  placeDonutOnSurface();
 };
 
 // Main loop
@@ -164,18 +151,44 @@ const animate = (timestamp, frame) => {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
 
-  if (mixer) mixer.update(delta);
   renderer.render(scene, camera);
 
   if (frame) {
+    const referenceSpace = renderer.xr.getReferenceSpace();
     const session = renderer.xr.getSession();
-    if (!hitTestSource) {
-      session.requestReferenceSpace('local').then((referenceSpace) => {
+
+    if (!hitTestSourceRequested) {
+      session.requestReferenceSpace('viewer').then((referenceSpace) => {
         session.requestHitTestSource({ space: referenceSpace }).then((source) => {
           hitTestSource = source;
-          localSpace = referenceSpace;
         });
       });
+
+      session.addEventListener('end', () => {
+        hitTestSourceRequested = false;
+        hitTestSource = null;
+      });
+
+      hitTestSourceRequested = true;
+    }
+
+    if (hitTestSource) {
+      const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+      if (hitTestResults.length) {
+        const hit = hitTestResults[0];
+        reticle.visible = true;
+        const pose = hit.getPose(referenceSpace);
+        reticle.matrix.fromArray(pose.transform.matrix);
+
+        if (model) {
+          model.visible = true;
+          model.position.setFromMatrixPosition(reticle.matrix);
+          model.quaternion.setFromRotationMatrix(reticle.matrix);
+        }
+      } else {
+        reticle.visible = false;
+      }
     }
   }
 };
@@ -219,6 +232,25 @@ const init = () => {
   controller.addEventListener('select', onSelect);
   scene.add(controller);
   console.log('Controller initialized:', controller);
+
+  reticle = new Mesh(
+    new RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+    new MeshBasicMaterial()
+  );
+  reticle.matrixAutoUpdate = false;
+  reticle.visible = false;
+  scene.add(reticle);
+
+  renderer.xr.addEventListener('sessionstart', () => {
+    const session = renderer.xr.getSession();
+    session.requestReferenceSpace('local').then((referenceSpace) => {
+      session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+        hitTestSource = source;
+        localSpace = referenceSpace;
+        console.log('Hit test source and local space initialized.');
+      });
+    });
+  });
 
   loadModel();
 
