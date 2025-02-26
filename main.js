@@ -16,6 +16,7 @@ import {
   MeshBasicMaterial,
   Vector3,
   Quaternion,
+  AnimationMixer
 } from 'three';
 
 // XR Emulator
@@ -45,7 +46,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // A solution is to treat this library as a standalone file and copy it using 'vite-plugin-static-copy'.
 // See vite.config.js
 // 
-// Consider using alternatives like Oimo or cannon-es
+// Consider using alternatives like Oimo ou cannon-es
 import {
   OrbitControls
 } from 'three/addons/controls/OrbitControls.js';
@@ -102,6 +103,14 @@ let reticle;
 let hitTestSource = null;
 let hitTestSourceRequested = false;
 let model = null;
+let pig = null;
+let nb_donuts = 0;
+let donuts_collected = 0;
+let donuts = [];
+let pigMixer = null;
+let walkAction = null;
+let idleAction = null;
+let eatingAction = null;
 
 const clock = new Clock();
 
@@ -116,11 +125,49 @@ function loadModel() {
     model = gltf.scene;
     model.visible = false;
     scene.add(model);
-    console.log('Model loaded:', model);
   }, undefined, (error) => {
     console.error('An error happened while loading the model:', error);
   });
 }
+
+function loadPig() {
+  const loader = new GLTFLoader();
+  loader.load('./WebXR/assets/pig.glb', (gltf) => {
+    pig = gltf.scene;
+    pig.visible = false;
+    scene.add(pig);
+
+    pigMixer = new AnimationMixer(pig);
+    walkAction = pigMixer.clipAction(gltf.animations[7]);
+    idleAction = pigMixer.clipAction(gltf.animations[2]);
+    eatingAction = pigMixer.clipAction(gltf.animations[3]);
+  }, undefined, (error) => {
+    console.error('An error happened while loading the pig model:', error);
+  });
+}
+function placePigOnCeiling(y) {
+  if (reticle.visible && pig) {
+    const position = new Vector3();
+    const quaternion = new Quaternion();
+    const scale = new Vector3();
+    reticle.matrix.decompose(position, quaternion, scale);
+    position.y = y;
+    position.x = 1;
+
+    pig.position.copy(position);
+    pig.rotation.set(Math.PI, 0, 0);
+    pig.scale.set(0.3, 0.3, 0.3);
+    ensurePigIsUpsideDown();
+    pig.visible = true;
+    console.log('Pig placed on ceiling:', pig);
+    walkAction.play();
+  }
+}
+
+
+const onSelect = () => {
+  placeDonutOnSurface();
+};
 
 function placeDonutOnSurface() {
   if (reticle.visible && model) {
@@ -129,24 +176,94 @@ function placeDonutOnSurface() {
     const quaternion = new Quaternion();
     const scale = new Vector3();
     reticle.matrix.decompose(position, quaternion, scale);
-    donut.position.copy(position);
-    donut.quaternion.copy(quaternion);
-    donut.scale.copy(scale);
-    donut.visible = true;
-    scene.add(donut);
-    console.log('Donut placed on surface:', donut);
+
+    const normal = new Vector3(0, 1, 0).applyQuaternion(quaternion);
+    if (normal.y < -0.5) {
+      donut.position.copy(position);
+      donut.quaternion.copy(quaternion);
+      donut.scale.copy(scale);
+      donut.visible = true;
+      scene.add(donut);
+      donuts.push(donut);
+      if (nb_donuts == 0) {
+        placePigOnCeiling(donut.position.y);
+        nb_donuts++;
+      }
+      console.log('Donut placed on ceiling:', donut);
+    } else {
+      console.log('Surface is not a ceiling, donut not placed.');
+    }
   }
 }
 
-const onSelect = () => {
-  placeDonutOnSurface();
-};
+function collectClosestDonut() {
+  if (donuts.length > 0 && pig) {
+    let closestDonut = null;
+    let minDistance = Infinity;
+    donuts.forEach(donut => {
+      const distance = pig.position.distanceTo(donut.position);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestDonut = donut;
+      }
+    });
+
+    if (closestDonut) {
+      ensurePigIsUpsideDown();
+      const direction = new Vector3().subVectors(closestDonut.position, pig.position).normalize();
+      pig.quaternion.setFromUnitVectors(new Vector3(0, 0, -1), direction);
+      pig.position.add(direction.multiplyScalar(0.01));
+      if (!walkAction.isRunning()) {
+        idleAction.stop();
+        eatingAction.stop();
+        walkAction.play();
+      }
+      if (pig.position.distanceTo(closestDonut.position) < 0.1) {
+        scene.remove(closestDonut);
+        donuts = donuts.filter(donut => donut !== closestDonut);
+        donuts_collected++;
+        console.log('Donut collected:', donuts_collected);
+        walkAction.stop();
+        eatingAction.play();
+        setTimeout(() => {
+          eatingAction.stop();
+          idleAction.play();
+        }, 2000);
+      }
+    } else {
+      if (!idleAction.isRunning()) {
+        walkAction.stop();
+        eatingAction.stop();
+        idleAction.play();
+      }
+    }
+  } else {
+    if (!idleAction.isRunning()) {
+      walkAction.stop();
+      eatingAction.stop();
+      idleAction.play();
+    }
+  }
+}
+function ensurePigIsUpsideDown() {
+  if (pig) {
+    const ceilingNormal = new Vector3(0, -1, 0);
+    const pigUp = new Vector3(0, 1, 0).applyQuaternion(pig.quaternion);
+    if (pigUp.dot(ceilingNormal) < 0.99) {
+      const rotationAxis = new Vector3().crossVectors(pigUp, ceilingNormal).normalize();
+      const angle = Math.acos(pigUp.dot(ceilingNormal));
+      pig.quaternion.setFromAxisAngle(rotationAxis, angle);
+    }
+  }
+}
 
 // Main loop
 const animate = (timestamp, frame) => {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
 
+  if (pigMixer) pigMixer.update(delta);
+  ensurePigIsUpsideDown();
   renderer.render(scene, camera);
 
   if (frame) {
@@ -184,9 +301,14 @@ const animate = (timestamp, frame) => {
         }
       } else {
         reticle.visible = false;
+        if (model) {
+          model.visible = false;
+        }
       }
     }
   }
+
+  collectClosestDonut();
 };
 
 const init = () => {
@@ -249,6 +371,7 @@ const init = () => {
   });
 
   loadModel();
+  loadPig();
 
   window.addEventListener('resize', onWindowResize, false);
 };
