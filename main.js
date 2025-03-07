@@ -16,7 +16,10 @@ import {
   MeshBasicMaterial,
   Vector3,
   Quaternion,
-  AnimationMixer
+  AnimationMixer,
+  AudioListener,
+  Audio,
+  AudioLoader
 } from 'three';
 
 // XR Emulator
@@ -111,6 +114,9 @@ let pigMixer = null;
 let walkAction = null;
 let idleAction = null;
 let eatingAction = null;
+let pointSound = null;
+let victorySound = null;
+let dohSound = null;
 
 const clock = new Clock();
 
@@ -145,6 +151,31 @@ function loadPig() {
   });
 }
 
+function loadSounds() {
+  const listener = new AudioListener();
+  camera.add(listener);
+
+  const audioLoader = new AudioLoader();
+
+  pointSound = new Audio(listener);
+  audioLoader.load('./WebXR/assets/point.mp3', (buffer) => {
+    pointSound.setBuffer(buffer);
+    pointSound.setVolume(0.5);
+  });
+
+  victorySound = new Audio(listener);
+  audioLoader.load('./WebXR/assets/victory.mp3', (buffer) => {
+    victorySound.setBuffer(buffer);
+    victorySound.setVolume(0.5);
+  });
+
+  dohSound = new Audio(listener);
+  audioLoader.load('./WebXR/assets/doh.mp3', (buffer) => {
+    dohSound.setBuffer(buffer);
+    dohSound.setVolume(0.5);
+  });
+}
+
 function placePigOnCeiling(position_donut) {
   if (reticle.visible && pig) {
     const offset = new Vector3(
@@ -160,8 +191,6 @@ function placePigOnCeiling(position_donut) {
     ensurePigIsUpsideDown();
     pig.visible = true;
     scene.add(pig);
-
-
   }
 }
 
@@ -191,6 +220,7 @@ function placeDonutOnSurface() {
       }
     } else {
       console.log('Surface is not a ceiling, donut not placed.');
+      dohSound.play();
     }
   }
 }
@@ -223,6 +253,10 @@ function collectClosestDonut() {
         donuts_collected++;
         walkAction.stop();
         eatingAction.play();
+        pointSound.play();
+        if (donuts_collected % 10 === 0) {
+          victorySound.play();
+        }
         setTimeout(() => {
           eatingAction.stop();
           idleAction.play();
@@ -373,6 +407,7 @@ const init = () => {
 
   loadModel();
   loadPig();
+  loadSounds();
 
   window.addEventListener('resize', onWindowResize, false);
 };
