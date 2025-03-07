@@ -19,7 +19,9 @@ import {
   AnimationMixer,
   AudioListener,
   Audio,
-  AudioLoader
+  AudioLoader,
+  TextureLoader,
+  PlaneGeometry
 } from 'three';
 
 // XR Emulator
@@ -117,6 +119,7 @@ let eatingAction = null;
 let pointSound = null;
 let victorySound = null;
 let dohSound = null;
+let footprintTexture = null;
 
 const clock = new Clock();
 
@@ -174,6 +177,11 @@ function loadSounds() {
     dohSound.setBuffer(buffer);
     dohSound.setVolume(0.5);
   });
+}
+
+function loadFootprintTexture() {
+  const textureLoader = new TextureLoader();
+  footprintTexture = textureLoader.load('./WebXR/assets/empreinte-pig.png');
 }
 
 function placePigOnCeiling(position_donut) {
@@ -262,6 +270,7 @@ function collectClosestDonut() {
           idleAction.play();
         }, 2000);
       }
+      placeFootprint(pig.position);
     } else {
       if (!idleAction.isRunning()) {
         walkAction.stop();
@@ -278,6 +287,19 @@ function collectClosestDonut() {
       }
     }
   }
+}
+
+function placeFootprint(position) {
+  const footprintGeometry = new PlaneGeometry(0.1, 0.1);
+  const footprintMaterial = new MeshBasicMaterial({ map: footprintTexture, transparent: true });
+  const footprint = new Mesh(footprintGeometry, footprintMaterial);
+  footprint.position.copy(position);
+  footprint.rotation.x = -Math.PI / 2;
+  scene.add(footprint);
+
+  setTimeout(() => {
+    scene.remove(footprint);
+  }, 5000);
 }
 
 function ensurePigIsUpsideDown() {
@@ -403,17 +425,18 @@ const init = () => {
         console.log('Hit test source and local space initialized.');
       });
     });
-    document.getElementById('description').style.display = 'none';
+    document.getElementById
   });
 
   loadModel();
   loadPig();
   loadSounds();
+  loadFootprintTexture();
 
   window.addEventListener('resize', onWindowResize, false);
 };
 
-init();
+window.init = init;
 
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
