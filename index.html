@@ -2,19 +2,67 @@
 <html lang="en">
 
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-  <title>three_vite</title>
-  <link rel="icon" href="favicon.png">
-  <link rel="stylesheet" href="./main.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebXR Example</title>
 </head>
 
 <body>
-  <div id="container"></div>
-  <!--
-  <script src="./jsm/libs/ammo.wasm.js"></script>
-  -->
- <script type="module" src="./main.js"></script>
+  <div id="description">
+    Ce jeu est un exemple de réalité augmentée. Vous pouvez placez des donuts au plafond que "spider-cohon" se chargera
+    de déguster.
+  </div>
+  <img id="background-image" src="assets/home.png" alt="Background Image">
+  <script src="main.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f0f0f0;
+    }
+
+    #description {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 5vw;
+      text-align: center;
+      color: #333;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 5vw;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #background-image {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      transform: translate(-50%, -50%);
+      z-index: -1;
+    }
+
+    @media (min-width: 768px) {
+      #description {
+        font-size: 24px;
+        padding: 20px;
+      }
+
+      #background-image {
+        width: 40%;
+        height: 90%;
+      }
+    }
+  </style>
 </body>
 
 </html>

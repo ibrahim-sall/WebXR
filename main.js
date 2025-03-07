@@ -403,6 +403,7 @@ const init = () => {
         console.log('Hit test source and local space initialized.');
       });
     });
+    document.getElementById('description').style.display = 'none';
   });
 
   loadModel();
