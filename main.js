@@ -368,7 +368,7 @@ const animate = (timestamp, frame) => {
   collectClosestDonut();
 };
 
-const init = () => {
+export const init = () => {
   scene = new Scene();
 
   const aspect = window.innerWidth / window.innerHeight;
@@ -425,7 +425,9 @@ const init = () => {
         console.log('Hit test source and local space initialized.');
       });
     });
-    document.getElementById
+    document.getElementById('description').style.display = 'none';
+    document.getElementById('start-button').style.display = 'none';
+    document.getElementById('background-image').style.display = 'none';
   });
 
   loadModel();
