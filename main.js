@@ -18,7 +18,7 @@ import {
   Quaternion,
   AnimationMixer,
   AudioListener,
-  Audio,
+  PositionalAudio,
   AudioLoader,
   TextureLoader,
   PlaneGeometry
@@ -102,7 +102,7 @@ await setupXR('immersive-ar');
 
 
 
-let camera, scene, renderer;
+let camera, scene, renderer, localSpace;
 let controller;
 let reticle;
 let hitTestSource = null;
@@ -116,10 +116,12 @@ let pigMixer = null;
 let walkAction = null;
 let idleAction = null;
 let eatingAction = null;
+let deathAction = null;
 let pointSound = null;
 let victorySound = null;
 let dohSound = null;
 let footprintTexture = null;
+let lastMovementTime = Date.now();
 
 const clock = new Clock();
 
@@ -149,6 +151,8 @@ function loadPig() {
     walkAction = pigMixer.clipAction(gltf.animations[7]);
     idleAction = pigMixer.clipAction(gltf.animations[2]);
     eatingAction = pigMixer.clipAction(gltf.animations[3]);
+    deathAction = pigMixer.clipAction(gltf.animations[0]);
+
   }, undefined, (error) => {
     console.error('An error happened while loading the pig model:', error);
   });
@@ -160,21 +164,24 @@ function loadSounds() {
 
   const audioLoader = new AudioLoader();
 
-  pointSound = new Audio(listener);
+  pointSound = new PositionalAudio(listener);
   audioLoader.load('./WebXR/assets/point.mp3', (buffer) => {
     pointSound.setBuffer(buffer);
+    pointSound.setRefDistance(1);
     pointSound.setVolume(0.5);
   });
 
-  victorySound = new Audio(listener);
+  victorySound = new PositionalAudio(listener);
   audioLoader.load('./WebXR/assets/victory.mp3', (buffer) => {
     victorySound.setBuffer(buffer);
+    victorySound.setRefDistance(1);
     victorySound.setVolume(0.5);
   });
 
-  dohSound = new Audio(listener);
+  dohSound = new PositionalAudio(listener);
   audioLoader.load('./WebXR/assets/doh.mp3', (buffer) => {
     dohSound.setBuffer(buffer);
+    dohSound.setRefDistance(1);
     dohSound.setVolume(0.5);
   });
 }
@@ -228,6 +235,8 @@ function placeDonutOnSurface() {
       }
     } else {
       console.log('Surface is not a ceiling, donut not placed.');
+      dohSound.position.copy(position);
+      scene.add(dohSound);
       dohSound.play();
     }
   }
@@ -250,6 +259,7 @@ function collectClosestDonut() {
       const direction = new Vector3().subVectors(closestDonut.position, pig.position).normalize();
       pig.quaternion.setFromUnitVectors(new Vector3(0, 0, -1), direction);
       pig.position.add(direction.multiplyScalar(0.01));
+      lastMovementTime = Date.now();
       if (!walkAction.isRunning()) {
         idleAction.stop();
         eatingAction.stop();
@@ -261,9 +271,20 @@ function collectClosestDonut() {
         donuts_collected++;
         walkAction.stop();
         eatingAction.play();
+        pointSound.position.copy(pig.position);
+        scene.add(pointSound);
         pointSound.play();
         if (donuts_collected % 10 === 0) {
+          victorySound.position.copy(pig.position);
+          scene.add(victorySound);
           victorySound.play();
+          const updateVictorySoundPosition = () => {
+            victorySound.position.copy(pig.position);
+            if (victorySound.isPlaying) {
+              requestAnimationFrame(updateVictorySoundPosition);
+            }
+          };
+          updateVictorySoundPosition();
         }
         setTimeout(() => {
           eatingAction.stop();
@@ -310,6 +331,17 @@ function ensurePigIsUpsideDown() {
       const rotationAxis = new Vector3().crossVectors(pigUp, ceilingNormal).normalize();
       const angle = Math.acos(pigUp.dot(ceilingNormal));
       pig.quaternion.setFromAxisAngle(rotationAxis, angle);
+    }
+  }
+}
+
+function checkPigMovement() {
+  if (Date.now() - lastMovementTime > 30000) {
+    if (!deathAction.isRunning()) {
+      idleAction.stop();
+      walkAction.stop();
+      eatingAction.stop();
+      deathAction.play();
     }
   }
 }
@@ -366,6 +398,7 @@ const animate = (timestamp, frame) => {
   }
 
   collectClosestDonut();
+  checkPigMovement();
 };
 
 export const init = () => {
@@ -425,9 +458,6 @@ export const init = () => {
         console.log('Hit test source and local space initialized.');
       });
     });
-    document.getElementById('description').style.display = 'none';
-    document.getElementById('start-button').style.display = 'none';
-    document.getElementById('background-image').style.display = 'none';
   });
 
   loadModel();
