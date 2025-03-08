@@ -34,22 +34,16 @@ import { XRButton } from 'three/addons/webxr/XRButton.js';
 
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-
 // Consider using alternatives like Oimo ou cannon-es
-import {
-  OrbitControls
-} from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-import {
-  GLTFLoader
-} from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // Example of hard link to official repo for data, if needed
 // const MODEL_PATH = 'https://raw.githubusercontent.com/mrdoob/three.js/r173/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb';
 
 async function setupXR(xrMode) {
-
   if (xrMode !== 'immersive-vr') return;
 
   // iwer setup: emulate vr session
@@ -84,8 +78,6 @@ async function setupXR(xrMode) {
 
 await setupXR('immersive-ar');
 
-
-
 let camera, scene, renderer, localSpace;
 let controller;
 let reticle;
@@ -112,69 +104,88 @@ let lastDeathActionTime = 0;
 const clock = new Clock();
 
 function loadModel() {
-  const loader = new GLTFLoader();
+  return new Promise((resolve, reject) => {
+    const loader = new GLTFLoader();
 
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath('./WebXR/jsm/libs/draco/gltf/');
-  loader.setDRACOLoader(dracoLoader);
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('./WebXR/jsm/libs/draco/gltf/');
+    loader.setDRACOLoader(dracoLoader);
 
-  loader.load('./WebXR/assets/donut.glb', (gltf) => {
-    model = gltf.scene;
-    model.visible = false;
-    scene.add(model);
-  }, undefined, (error) => {
-    console.error('An error happened while loading the model:', error);
+    loader.load('./WebXR/assets/donut.glb', (gltf) => {
+      model = gltf.scene;
+      model.visible = false;
+      scene.add(model);
+      resolve();
+    }, undefined, (error) => {
+      console.error('An error happened while loading the model:', error);
+      reject(error);
+    });
   });
 }
 
 function loadPig() {
-  const loader = new GLTFLoader();
-  loader.load('./WebXR/assets/pig.glb', (gltf) => {
-    pig = gltf.scene;
-    pig.visible = false;
+  return new Promise((resolve, reject) => {
+    const loader = new GLTFLoader();
+    loader.load('./WebXR/assets/pig.glb', (gltf) => {
+      pig = gltf.scene;
+      pig.visible = false;
 
-    pigMixer = new AnimationMixer(pig);
-    walkAction = pigMixer.clipAction(gltf.animations[7]);
-    idleAction = pigMixer.clipAction(gltf.animations[2]);
-    eatingAction = pigMixer.clipAction(gltf.animations[3]);
-    deathAction = pigMixer.clipAction(gltf.animations[0]);
+      pigMixer = new AnimationMixer(pig);
+      walkAction = pigMixer.clipAction(gltf.animations[7]);
+      idleAction = pigMixer.clipAction(gltf.animations[2]);
+      eatingAction = pigMixer.clipAction(gltf.animations[3]);
+      deathAction = pigMixer.clipAction(gltf.animations[0]);
 
-  }, undefined, (error) => {
-    console.error('An error happened while loading the pig model:', error);
+      resolve();
+    }, undefined, (error) => {
+      console.error('An error happened while loading the pig model:', error);
+      reject(error);
+    });
   });
 }
 
 function loadSounds() {
-  const listener = new AudioListener();
-  camera.add(listener);
+  return new Promise((resolve, reject) => {
+    const listener = new AudioListener();
+    camera.add(listener);
 
-  const audioLoader = new AudioLoader();
+    const audioLoader = new AudioLoader();
 
-  pointSound = new PositionalAudio(listener);
-  audioLoader.load('./WebXR/assets/point.mp3', (buffer) => {
-    pointSound.setBuffer(buffer);
-    pointSound.setRefDistance(1);
-    pointSound.setVolume(0.5);
-  });
+    pointSound = new PositionalAudio(listener);
+    audioLoader.load('./WebXR/assets/point.mp3', (buffer) => {
+      pointSound.setBuffer(buffer);
+      pointSound.setRefDistance(1);
+      pointSound.setVolume(0.5);
+    });
 
-  victorySound = new PositionalAudio(listener);
-  audioLoader.load('./WebXR/assets/victory.mp3', (buffer) => {
-    victorySound.setBuffer(buffer);
-    victorySound.setRefDistance(1);
-    victorySound.setVolume(0.5);
-  });
+    victorySound = new PositionalAudio(listener);
+    audioLoader.load('./WebXR/assets/victory.mp3', (buffer) => {
+      victorySound.setBuffer(buffer);
+      victorySound.setRefDistance(1);
+      victorySound.setVolume(0.5);
+    });
 
-  dohSound = new PositionalAudio(listener);
-  audioLoader.load('./WebXR/assets/doh.mp3', (buffer) => {
-    dohSound.setBuffer(buffer);
-    dohSound.setRefDistance(1);
-    dohSound.setVolume(0.5);
+    dohSound = new PositionalAudio(listener);
+    audioLoader.load('./WebXR/assets/doh.mp3', (buffer) => {
+      dohSound.setBuffer(buffer);
+      dohSound.setRefDistance(1);
+      dohSound.setVolume(0.5);
+      resolve();
+    }, undefined, (error) => {
+      console.error('An error happened while loading the sounds:', error);
+      reject(error);
+    });
   });
 }
 
 function loadFootprintTexture() {
-  const textureLoader = new TextureLoader();
-  footprintTexture = textureLoader.load('./WebXR/assets/empreinte-pig.png');
+  return new Promise((resolve, reject) => {
+    const textureLoader = new TextureLoader();
+    footprintTexture = textureLoader.load('./WebXR/assets/empreinte-pig.png', resolve, undefined, (error) => {
+      console.error('An error happened while loading the footprint texture:', error);
+      reject(error);
+    });
+  });
 }
 
 function placePigOnCeiling(position_donut) {
@@ -404,7 +415,7 @@ const animate = (timestamp, frame) => {
   }
 };
 
-export const init = () => {
+export const init = async () => {
   scene = new Scene();
 
   const aspect = window.innerWidth / window.innerHeight;
@@ -463,10 +474,12 @@ export const init = () => {
     });
   });
 
-  loadModel();
-  loadPig();
-  loadSounds();
-  loadFootprintTexture();
+  await Promise.all([
+    loadModel(),
+    loadPig(),
+    loadSounds(),
+    loadFootprintTexture()
+  ]);
 
   window.addEventListener('resize', onWindowResize, false);
 };
