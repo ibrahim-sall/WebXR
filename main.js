@@ -125,7 +125,7 @@ function loadModel() {
     const loader = new GLTFLoader();
 
     const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('./WebXR/jsm/libs/draco/gltf/');
+    dracoLoader.setDecoderPath('./jsm/libs/draco/gltf/');
     loader.setDRACOLoader(dracoLoader);
 
     loader.load('./assets/donut.glb', (gltf) => {
