@@ -122,6 +122,7 @@ let victorySound = null;
 let dohSound = null;
 let footprintTexture = null;
 let lastMovementTime = Date.now();
+let lastDeathActionTime = 0;
 
 const clock = new Clock();
 
@@ -233,11 +234,17 @@ function placeDonutOnSurface() {
         placePigOnCeiling(donut.position);
         nb_donuts++;
       }
+      if (controller && controller.gamepad && controller.gamepad.hapticActuators && controller.gamepad.hapticActuators.length > 0) {
+        controller.gamepad.hapticActuators[0].pulse(0.5, 100);
+      }
     } else {
       console.log('Surface is not a ceiling, donut not placed.');
       dohSound.position.copy(position);
       scene.add(dohSound);
       dohSound.play();
+      if (controller && controller.gamepad && controller.gamepad.hapticActuators && controller.gamepad.hapticActuators.length > 0) {
+        controller.gamepad.hapticActuators[0].pulse(1.0, 100);
+      }
     }
   }
 }
@@ -336,12 +343,18 @@ function ensurePigIsUpsideDown() {
 }
 
 function checkPigMovement() {
-  if (Date.now() - lastMovementTime > 30000) {
+  const currentTime = Date.now();
+  if (currentTime - lastMovementTime > 30000 && currentTime - lastDeathActionTime > 30000) {
     if (!deathAction.isRunning()) {
       idleAction.stop();
       walkAction.stop();
       eatingAction.stop();
       deathAction.play();
+      lastDeathActionTime = currentTime;
+      setTimeout(() => {
+        deathAction.stop();
+        idleAction.play();
+      }, deathAction._clip.duration * 1000);
     }
   }
 }
@@ -399,6 +412,9 @@ const animate = (timestamp, frame) => {
 
   collectClosestDonut();
   checkPigMovement();
+  if (walkAction.isRunning()) {
+    placeFootprint(pig.position);
+  }
 };
 
 export const init = () => {
