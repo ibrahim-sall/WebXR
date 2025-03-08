@@ -34,24 +34,7 @@ import { XRButton } from 'three/addons/webxr/XRButton.js';
 
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-// If you prefer to import the whole library, with the THREE prefix, use the following line instead:
-// import * as THREE from 'three'
 
-// NOTE: three/addons alias is supported by Rollup: you can use it interchangeably with three/examples/jsm/  
-
-// Importing Ammo can be tricky.
-// Vite supports webassembly: https://vitejs.dev/guide/features.html#webassembly
-// so in theory this should work:
-//
-// import ammoinit from 'three/addons/libs/ammo.wasm.js?init';
-// ammoinit().then((AmmoLib) => {
-//  Ammo = AmmoLib.exports.Ammo()
-// })
-//
-// But the Ammo lib bundled with the THREE js examples does not seem to export modules properly.
-// A solution is to treat this library as a standalone file and copy it using 'vite-plugin-static-copy'.
-// See vite.config.js
-// 
 // Consider using alternatives like Oimo ou cannon-es
 import {
   OrbitControls
@@ -216,7 +199,7 @@ const onSelect = () => {
   placeDonutOnSurface();
 };
 
-function placeDonutOnSurface() {
+async function placeDonutOnSurface() {
   if (reticle.visible && model) {
     const donut = model.clone();
     const position = new Vector3();
@@ -236,17 +219,11 @@ function placeDonutOnSurface() {
         placePigOnCeiling(donut.position);
         nb_donuts++;
       }
-      if (controller && controller.gamepad && controller.gamepad.hapticActuators && controller.gamepad.hapticActuators.length > 0) {
-        controller.gamepad.hapticActuators[0].pulse(0.5, 100);
-      }
     } else {
       console.log('Surface is not a ceiling, donut not placed.');
       dohSound.position.copy(position);
       scene.add(dohSound);
       dohSound.play();
-      if (controller && controller.gamepad && controller.gamepad.hapticActuators && controller.gamepad.hapticActuators.length > 0) {
-        controller.gamepad.hapticActuators[0].pulse(1.0, 100);
-      }
     }
   }
 }
