@@ -12,7 +12,7 @@
     In this simple XR game you will be able to place donuts on your ceilling. Spider-pig will try to eat them.
   </div>
   <img id="background-image" src="assets/home.png" alt="Background Image">
-  <button id="start-button">Commencer</button>
+  <button id="start-button">Go to XR</button>
   <script type="module">
     import { init } from './main.js';
 
@@ -74,6 +74,26 @@
       border-radius: 5px;
       cursor: pointer;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s, transform 0.3s;
+    }
+
+    #start-button:hover {
+      background-color: #0056b3;
+      transform: translateX(-50%) scale(1.05);
+    }
+
+    @media (max-width: 767px) {
+      #start-button {
+        font-size: 1.5em;
+        padding: 0.75em 1.5em;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #start-button {
+        font-size: 1.2em;
+        padding: 0.5em 1em;
+      }
     }
 
     #start-button:hover {

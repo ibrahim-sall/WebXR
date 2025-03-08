@@ -21,7 +21,8 @@ import {
   PositionalAudio,
   AudioLoader,
   TextureLoader,
-  PlaneGeometry
+  PlaneGeometry,
+  DoubleSide
 } from 'three';
 
 // XR Emulator
@@ -122,6 +123,7 @@ let victorySound = null;
 let dohSound = null;
 let footprintTexture = null;
 let lastMovementTime = Date.now();
+let lastFootprintTime = 0;
 let lastDeathActionTime = 0;
 
 const clock = new Clock();
@@ -298,7 +300,6 @@ function collectClosestDonut() {
           idleAction.play();
         }, 2000);
       }
-      placeFootprint(pig.position);
     } else {
       if (!idleAction.isRunning()) {
         walkAction.stop();
@@ -317,12 +318,16 @@ function collectClosestDonut() {
   }
 }
 
-function placeFootprint(position) {
-  const footprintGeometry = new PlaneGeometry(0.1, 0.1);
-  const footprintMaterial = new MeshBasicMaterial({ map: footprintTexture, transparent: true });
+function placeFootprint(position, direction) {
+  const footprintGeometry = new PlaneGeometry(0.4, 0.4);
+  const footprintMaterial = new MeshBasicMaterial({ map: footprintTexture, transparent: true, side: DoubleSide });
   const footprint = new Mesh(footprintGeometry, footprintMaterial);
   footprint.position.copy(position);
   footprint.rotation.x = -Math.PI / 2;
+
+  const angle = Math.atan2(direction.z, direction.x);
+  footprint.rotation.z = angle;
+
   scene.add(footprint);
 
   setTimeout(() => {
@@ -411,9 +416,14 @@ const animate = (timestamp, frame) => {
   }
 
   collectClosestDonut();
-  checkPigMovement();
   if (walkAction.isRunning()) {
-    placeFootprint(pig.position);
+    const currentTime = Date.now();
+    if (currentTime - lastFootprintTime > 1000) {
+      const direction = new Vector3();
+      pig.getWorldDirection(direction);
+      placeFootprint(pig.position, direction);
+      lastFootprintTime = currentTime;
+    }
   }
 };
 
