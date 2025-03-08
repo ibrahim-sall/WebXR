@@ -128,7 +128,7 @@ function loadModel() {
     dracoLoader.setDecoderPath('./WebXR/jsm/libs/draco/gltf/');
     loader.setDRACOLoader(dracoLoader);
 
-    loader.load('./WebXR/assets/donut.glb', (gltf) => {
+    loader.load('./assets/donut.glb', (gltf) => {
       model = gltf.scene;
       model.visible = false;
       scene.add(model);
@@ -144,7 +144,7 @@ function loadPig() {
 
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
-    loader.load('./WebXR/assets/pig.glb', (gltf) => {
+    loader.load('./assets/pig.glb', (gltf) => {
       pig = gltf.scene;
       pig.visible = false;
 
@@ -183,21 +183,21 @@ function loadSounds() {
     const audioLoader = new AudioLoader();
 
     pointSound = new PositionalAudio(listener);
-    audioLoader.load('./WebXR/assets/point.mp3', (buffer) => {
+    audioLoader.load('./assets/point.mp3', (buffer) => {
       pointSound.setBuffer(buffer);
       pointSound.setRefDistance(1);
       pointSound.setVolume(0.5);
     });
 
     victorySound = new PositionalAudio(listener);
-    audioLoader.load('./WebXR/assets/victory.mp3', (buffer) => {
+    audioLoader.load('./assets/victory.mp3', (buffer) => {
       victorySound.setBuffer(buffer);
       victorySound.setRefDistance(1);
       victorySound.setVolume(0.5);
     });
 
     dohSound = new PositionalAudio(listener);
-    audioLoader.load('./WebXR/assets/doh.mp3', (buffer) => {
+    audioLoader.load('./assets/doh.mp3', (buffer) => {
       dohSound.setBuffer(buffer);
       dohSound.setRefDistance(1);
       dohSound.setVolume(0.5);
@@ -212,7 +212,7 @@ function loadSounds() {
 function loadFootprintTexture() {
   return new Promise((resolve, reject) => {
     const textureLoader = new TextureLoader();
-    footprintTexture = textureLoader.load('./WebXR/assets/empreinte-pig.png', resolve, undefined, (error) => {
+    footprintTexture = textureLoader.load('./assets/empreinte-pig.png', resolve, undefined, (error) => {
       console.error('An error happened while loading the footprint texture:', error);
       reject(error);
     });
