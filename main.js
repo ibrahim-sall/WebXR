@@ -103,6 +103,9 @@ let lastDeathActionTime = 0;
 
 const clock = new Clock();
 
+
+////////////////////////////////////////____LOADING MODELS____////////////////////////////////////////
+
 function loadModel() {
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
@@ -188,6 +191,8 @@ function loadFootprintTexture() {
   });
 }
 
+////////////////////////////////////////____PLACEMENTS____////////////////////////////////////////
+
 function placePigOnCeiling(position_donut) {
   if (reticle.visible && pig) {
     const offset = new Vector3(
@@ -238,6 +243,9 @@ async function placeDonutOnSurface() {
     }
   }
 }
+
+
+////////////////////////////////////////____MOOOOOOOVE____////////////////////////////////////////
 
 function collectClosestDonut() {
   if (donuts.length > 0 && pig) {
@@ -323,6 +331,9 @@ function placeFootprint(position, direction) {
   }, 5000);
 }
 
+////////////////////////////////////////____PLACE BIG UPSIDE DOWN by brute force____////////////////////////////////////////
+//this is still not working for first placement
+
 function ensurePigIsUpsideDown() {
   if (pig) {
     const ceilingNormal = new Vector3(0, -1, 0);
@@ -352,7 +363,9 @@ function checkPigMovement() {
   }
 }
 
-// Main loop
+////////////////////////////////////////____MAIN LOOP____////////////////////////////////////////
+
+
 const animate = (timestamp, frame) => {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
@@ -404,6 +417,8 @@ const animate = (timestamp, frame) => {
   }
 
   collectClosestDonut();
+  checkPigMovement();
+
   if (walkAction.isRunning()) {
     const currentTime = Date.now();
     if (currentTime - lastFootprintTime > 1000) {
