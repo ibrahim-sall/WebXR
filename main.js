@@ -103,7 +103,24 @@ const clock = new Clock();
 
 ////////////////////////////////////////____LOADING MODELS____////////////////////////////////////////
 
+
 function loadModel() {
+  /**
+   * Loads a 3D model using GLTFLoader and DRACOLoader.
+   * 
+   * @returns {Promise<void>} A promise that resolves when the model is successfully loaded and added to the scene, or rejects if an error occurs.
+   * 
+   * @throws {Error} If an error occurs while loading the model.
+   * 
+   * @example
+   * loadModel()
+   *   .then(() => {
+   *     console.log('Model loaded successfully');
+   *   })
+   *   .catch((error) => {
+   *     console.error('Failed to load model:', error);
+   *   });
+   */
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
 
@@ -124,6 +141,7 @@ function loadModel() {
 }
 
 function loadPig() {
+
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
     loader.load('./WebXR/assets/pig.glb', (gltf) => {
@@ -144,7 +162,20 @@ function loadPig() {
   });
 }
 
+
 function loadSounds() {
+  /**
+ * Loads the sound assets for the application.
+ * 
+ * This function loads three positional audio files: point.mp3, victory.mp3, and doh.mp3.
+ * It adds an AudioListener to the camera and sets up the audio properties for each sound.
+ * 
+ * @returns {Promise<void>} A promise that resolves when all sounds are loaded successfully, 
+ * or rejects if there is an error loading any of the sounds.
+ * 
+ * @throws {Error} If there is an error loading any of the sound files.
+ */
+
   return new Promise((resolve, reject) => {
     const listener = new AudioListener();
     camera.add(listener);
@@ -190,7 +221,13 @@ function loadFootprintTexture() {
 
 ////////////////////////////////////////____PLACEMENTS____////////////////////////////////////////
 
+
 function placePigOnCeiling(position_donut) {
+  /**
+   * Places a pig object on the ceiling at a random offset from the given position.
+   *
+   * @param {Vector3} position_donut - The base position from which the pig's position is calculated.
+   */
   if (reticle.visible && pig) {
     const offset = new Vector3(
       (Math.random() - 0.5) * 2,
@@ -212,7 +249,26 @@ const onSelect = () => {
   placeDonutOnSurface();
 };
 
+
 async function placeDonutOnSurface() {
+  /**
+   * Places a donut model on the surface if the reticle is visible and the surface is a ceiling.
+   * If the surface is not a ceiling, plays a sound indicating the donut was not placed.
+   * 
+   * Preconditions:
+   * - `reticle` must be visible.
+   * - `model` must be defined.
+   * 
+   * Postconditions:
+   * - If the surface is a ceiling, a donut is placed at the reticle's position and orientation.
+   * - If no donuts have been placed yet, a pig is placed on the ceiling.
+   * - If the surface is not a ceiling, a sound is played, no donut is placed.
+   * 
+   * @async
+   * @function placeDonutOnSurface
+   * @returns {Promise<void>} A promise that resolves when the operation is complete.
+   */
+
   if (reticle.visible && model) {
     const donut = model.clone();
     const position = new Vector3();
@@ -244,7 +300,28 @@ async function placeDonutOnSurface() {
 
 ////////////////////////////////////////____MOOOOOOOVE____////////////////////////////////////////
 
+
 function collectClosestDonut() {
+  /**
+  * Collects the closest donut to the pig.
+  * 
+  * This function finds the closest donut to the pig, moves the pig towards it, and handles the animations and sounds associated with collecting the donut. 
+  * If the pig collects a donut, it updates the scene and plays the appropriate sounds and animations. 
+  * Every 10 donuts collected triggers a victory sound.
+  * 
+  * Preconditions:
+  * - `donuts` is an array of donut objects with a `position` property.
+  * - `pig` is an object with `position`, `quaternion`, and animation actions (`walkAction`, `idleAction`, `eatingAction`).
+  * - `scene` is the Three.js scene object.
+  * - `pointSound` and `victorySound` are sound objects.
+  * 
+  * Postconditions:
+  * - The closest donut is removed from the scene and the `donuts` array.
+  * - The pig's position and animations are updated.
+  * - Sounds are played based on the actions performed.
+  * 
+  * @function collectClosestDonut
+  */
   if (donuts.length > 0 && pig) {
     let closestDonut = null;
     let minDistance = Infinity;
@@ -427,6 +504,7 @@ const animate = (timestamp, frame) => {
   }
 };
 
+////////////////////////////////////////____INIT____////////////////////////////////////////
 export const init = async () => {
   scene = new Scene();
 

@@ -3,5 +3,7 @@
   "conventionalCommits.scopes": [
     "vite",
     "vscode"
-  ]
+  ],
+  "docwriter.style": "JSDoc",
+  "docwriter.progress.trackFunctions": true
 }
