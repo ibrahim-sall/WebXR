@@ -34,14 +34,11 @@ import { XRButton } from 'three/addons/webxr/XRButton.js';
 
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-// Consider using alternatives like Oimo ou cannon-es
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-// Example of hard link to official repo for data, if needed
-// const MODEL_PATH = 'https://raw.githubusercontent.com/mrdoob/three.js/r173/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb';
 
 async function setupXR(xrMode) {
   if (xrMode !== 'immersive-vr') return;
