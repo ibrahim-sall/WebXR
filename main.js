@@ -418,6 +418,14 @@ const groundBody = new CANNON.Body({
 });
 groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 world.addBody(groundBody);
+
+function rotateAroundYAxis(object, angle) {
+  const quaternion = new Quaternion();
+  quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), angle);
+  object.quaternion = object.quaternion.mult(quaternion);
+}
+
+
 function placeSprinkles(donutPosition) {
   /**
    * Places a single random sprinkle under an eaten donut and makes it fall to the ground or any object underneath using Cannon.js for physics.
@@ -451,9 +459,14 @@ function placeSprinkles(donutPosition) {
       sprinkle.position.copy(sprinkleBody.position);
       sprinkle.quaternion.copy(sprinkleBody.quaternion);
 
-      sprinkle.rotation.x += 0.05;
-      sprinkle.rotation.y += 0.05;
-      sprinkle.rotation.z += 0.05;
+      if (sprinkle.position.y > 0) {
+        rotateAroundYAxis(sprinkleBody, 0.05);
+      } else {
+        sprinkle.position.y = 0;
+        sprinkleBody.velocity.set(0, 0, 0);
+        sprinkleBody.angularVelocity.set(0, 0, 0);
+        return;
+      }
 
       requestAnimationFrame(animateSprinkle);
     };
