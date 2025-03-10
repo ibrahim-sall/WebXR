@@ -40,6 +40,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
+import * as CANNON from 'cannon-es'
+
 async function setupXR(xrMode) {
   if (xrMode !== 'immersive-vr') return;
 
@@ -97,6 +99,7 @@ let footprintTexture = null;
 let lastMovementTime = Date.now();
 let lastFootprintTime = 0;
 let lastDeathActionTime = 0;
+let sprinkleList = null;
 
 const clock = new Clock();
 
@@ -138,6 +141,22 @@ function loadModel() {
       reject(error);
     });
   });
+}
+function createSprinkleList() {
+  /**
+   * Creates a list of sprinkle elements from the donuts.
+   * Finds elements under the name `Mesh_donutSprinkles_id` for id 2 to 4.
+   * 
+   * @returns {Array} An array of sprinkle elements.
+   */
+  const loadSprinkleList = [];
+  for (let id = 2; id <= 4; id++) {
+    const sprinkle = model.getObjectByName(`Mesh_donutSprinkles_${id}`);
+    if (sprinkle) {
+      loadSprinkleList.push(sprinkle);
+    }
+  }
+  sprinkleList = loadSprinkleList;
 }
 
 function loadPig() {
@@ -346,6 +365,7 @@ function collectClosestDonut() {
       }
       if (pig.position.distanceTo(closestDonut.position) < 0.1) {
         scene.remove(closestDonut);
+        placeSprinkles(closestDonut.position);
         donuts = donuts.filter(donut => donut !== closestDonut);
         donuts_collected++;
         walkAction.stop();
@@ -385,6 +405,59 @@ function collectClosestDonut() {
         idleAction.play();
       }
     }
+  }
+}
+
+const world = new CANNON.World();
+world.gravity.set(0, -9.82, 0);
+
+const groundShape = new CANNON.Plane();
+const groundBody = new CANNON.Body({
+  mass: 0,
+  shape: groundShape
+});
+groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+world.addBody(groundBody);
+function placeSprinkles(donutPosition) {
+  /**
+   * Places a single random sprinkle under an eaten donut and makes it fall to the ground or any object underneath using Cannon.js for physics.
+   * The sprinkle is scaled up to be larger and rotates on itself while falling.
+   *
+   * @param {Vector3} donutPosition - The position where the donut was eaten.
+   */
+  if (sprinkleList.length > 0) {
+    const randomIndex = Math.floor(Math.random() * sprinkleList.length);
+    const sprinkle = sprinkleList[randomIndex].clone();
+    sprinkle.position.copy(donutPosition);
+    sprinkle.scale.set(2, 2, 2);
+    sprinkle.visible = true;
+    scene.add(sprinkle);
+
+    const sprinkleShape = new CANNON.Box(new CANNON.Vec3(0.1, 0.1, 0.1));
+    const sprinkleBody = new CANNON.Body({
+      mass: 0.001,
+      position: new CANNON.Vec3(donutPosition.x, donutPosition.y, donutPosition.z),
+      shape: sprinkleShape
+    });
+
+    sprinkleBody.collisionFilterGroup = 1;
+    sprinkleBody.collisionFilterMask = -1;
+
+    world.addBody(sprinkleBody);
+
+    const animateSprinkle = () => {
+      world.step(1 / 60);
+
+      sprinkle.position.copy(sprinkleBody.position);
+      sprinkle.quaternion.copy(sprinkleBody.quaternion);
+
+      sprinkle.rotation.x += 0.05;
+      sprinkle.rotation.y += 0.05;
+      sprinkle.rotation.z += 0.05;
+
+      requestAnimationFrame(animateSprinkle);
+    };
+    animateSprinkle();
   }
 }
 
@@ -570,6 +643,8 @@ export const init = async () => {
     loadSounds(),
     loadFootprintTexture()
   ]);
+  createSprinkleList();
+
 
   window.addEventListener('resize', onWindowResize, false);
 };
